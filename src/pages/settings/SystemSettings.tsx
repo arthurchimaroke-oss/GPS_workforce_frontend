@@ -66,6 +66,7 @@ import {
   type SubscriptionCheckoutPayload,
 } from "@/lib/api";
 import { useAuth } from "@/components/context/authContext";
+import { useNavigate } from "react-router-dom";
 
 // ENTITY TYPES & HELPERS
 type EntityForm = {
@@ -195,15 +196,27 @@ const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
   },
 ];
 
-// Resolve the current company's id for checkout payloads
-
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
 
 const SystemSettings = () => {
-    const { user : {company_id , email }} = useAuth();
-    
+  // Auth must be guarded the same way DashboardV1 guards it: `user` is
+  // `null` until checkAuth resolves, so nothing may destructure fields off
+  // it until both `isLoading` is false AND `user` is non-null.
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      navigate("/sign-in", { replace: true });
+    }
+  }, [user, isAuthLoading, navigate]);
+
+  // Safe to read now: falls back to null/"" while `user` is still loading,
+  // and gets the real values once it resolves (component re-renders).
+  const company_id = user?.company_id ?? null;
+  const email = user?.email ?? "";
 
   // ============================================================
   // ENTITY STATE
@@ -545,6 +558,15 @@ const SystemSettings = () => {
       return;
     }
 
+    if (!company_id) {
+      toast({
+        title: "Checkout failed",
+        description: "Could not determine which company this subscription belongs to.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!isProviderAvailable(selectedProvider)) {
       toast({
         title: `${getProviderName(selectedProvider)} is coming soon`,
@@ -571,6 +593,15 @@ const SystemSettings = () => {
       toast({
         title: "Invalid count",
         description: "Please enter a valid number of additional employees.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!company_id) {
+      toast({
+        title: "Checkout failed",
+        description: "Could not determine which company this subscription belongs to.",
         variant: "destructive",
       });
       return;
@@ -612,6 +643,15 @@ const SystemSettings = () => {
       toast({
         title: "Renewal already scheduled",
         description: "A future subscription already exists for this company.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!company_id) {
+      toast({
+        title: "Checkout failed",
+        description: "Could not determine which company this subscription belongs to.",
         variant: "destructive",
       });
       return;
@@ -1070,6 +1110,23 @@ const SystemSettings = () => {
   // ============================================================
   // RENDER
   // ============================================================
+
+  // Still checking auth status
+  if (isAuthLoading) {
+    return (
+      <SidebarLayout>
+        <div className="flex items-center justify-center gap-2 rounded-3xl border border-border bg-card p-12 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading...
+        </div>
+      </SidebarLayout>
+    );
+  }
+
+  // Redirect is in progress
+  if (!user) {
+    return null;
+  }
 
   return (
     <SidebarLayout>
@@ -2126,7 +2183,7 @@ const SystemSettings = () => {
                 ) : (
                   <>
                     <ShoppingCart className="mr-2 h-4 w-4" />
-                    Add & Pay
+                    Proceed to payment
                   </>
                 )}
               </Button>
@@ -2226,7 +2283,7 @@ const SystemSettings = () => {
                 ) : (
                   <>
                     <ShoppingCart className="mr-2 h-4 w-4" />
-                    Add & Pay
+                    Proceed to payment
                   </>
                 )}
               </Button>
