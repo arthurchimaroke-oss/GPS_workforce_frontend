@@ -68,6 +68,7 @@ export type AuthUser = Record<string, unknown> & {
   entities?: EntityOption[];
 };
 
+
 export type LoginResult =
   | { status: "success" }
   | { status: "select_entity"; entities: EntityOption[] };

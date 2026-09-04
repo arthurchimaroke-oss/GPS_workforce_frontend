@@ -65,6 +65,7 @@ import {
   type SubscriptionCheckoutPurpose,
   type SubscriptionCheckoutPayload,
 } from "@/lib/api";
+import { useAuth } from "@/components/context/authContext";
 
 // ENTITY TYPES & HELPERS
 type EntityForm = {
@@ -152,22 +153,60 @@ type NewSubscriptionForm = {
   selectedModules: string[];
 };
 
+// ============================================================
+// PAYMENT PROVIDERS
+// ============================================================
+// Add new providers here as they're integrated on the backend.
+// `available: false` providers still show in the picker (so users
+// know they're coming) but can't be selected yet.
+type PaymentProviderId = "flutterwave" | "paystack" | "stripe" | "paypal";
+
+interface PaymentProviderOption {
+  id: PaymentProviderId;
+  name: string;
+  description: string;
+  available: boolean;
+}
+
+const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
+  {
+    id: "flutterwave",
+    name: "Flutterwave",
+    description: "Cards, bank transfer, USSD & mobile money",
+    available: true,
+  },
+  {
+    id: "paystack",
+    name: "Paystack",
+    description: "Cards & bank transfer",
+    available: false,
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    description: "International cards",
+    available: false,
+  },
+  {
+    id: "paypal",
+    name: "PayPal",
+    description: "Pay with your PayPal balance",
+    available: false,
+  },
+];
+
 // Resolve the current company's id for checkout payloads
-const resolveCompanyId = (subscription: CompanySubscription | null): string | null => {
-  const fallback = localStorage.getItem("company_id");
-  if (fallback) return fallback;
-  console.warn(
-    "[SystemSettings] Could not resolve company_id for checkout. " +
-    "Expected it in localStorage('company_id')."
-  );
-  return null;
-};
 
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
 
 const SystemSettings = () => {
+    const { user : {company_id , email}} = useAuth();
+
+    
+  
+
   // ============================================================
   // ENTITY STATE
   // ============================================================
@@ -240,6 +279,9 @@ const SystemSettings = () => {
 
   const [calculatedAmount, setCalculatedAmount] = useState<number | null>(null);
   const [calculateMessage, setCalculateMessage] = useState<string | null>(null);
+
+  // Payment provider - chosen inline on each checkout modal, defaults to Flutterwave
+  const [selectedProvider, setSelectedProvider] = useState<PaymentProviderId>("flutterwave");
 
   // ============================================================
   // ENTITY FUNCTIONS
@@ -324,6 +366,7 @@ const SystemSettings = () => {
     try {
       const response = await subscriptionApi.getCurrent();
       if (response && response.subscription_id) {
+        console.log(response)
         setSubscription(response);
         // setFutureSubscription(response.future_subscription ?? null);
       } else {
@@ -415,8 +458,8 @@ const SystemSettings = () => {
     setIsCheckout(true);
     try {
       const response = await subscriptionApi.checkout(payload);
-      if (response.status && response.payment_url) {
-        window.location.href = response.payment_url;
+      if (response.payment_link) {
+        window.location.href = response.payment_link;
       } else {
         toast({
           title: "Checkout failed",
@@ -436,6 +479,16 @@ const SystemSettings = () => {
   };
 
   // ============================================================
+  // PAYMENT PROVIDER HELPERS
+  // ============================================================
+
+  const isProviderAvailable = (id: PaymentProviderId) =>
+    PAYMENT_PROVIDERS.find((p) => p.id === id)?.available ?? false;
+
+  const getProviderName = (id: PaymentProviderId) =>
+    PAYMENT_PROVIDERS.find((p) => p.id === id)?.name ?? "This provider";
+
+  // ============================================================
   // SUBSCRIPTION ACTION HANDLERS
   // ============================================================
 
@@ -451,6 +504,15 @@ const SystemSettings = () => {
       return;
     }
 
+    if (!isProviderAvailable(selectedProvider)) {
+      toast({
+        title: `${getProviderName(selectedProvider)} is coming soon`,
+        description: "This payment provider isn't live yet. Please choose a different one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     await createCheckout({
       purpose: "new_subscription",
       company_id: null,
@@ -458,7 +520,7 @@ const SystemSettings = () => {
       employee_count: form.employeeCount,
       subscription_months: form.subscriptionMonths,
       selected_modules: form.selectedModules,
-      payment_provider: "flutterwave",
+      payment_provider: selectedProvider,
     });
   };
 
@@ -473,11 +535,10 @@ const SystemSettings = () => {
       return;
     }
 
-    const companyId = resolveCompanyId(subscription);
-    if (!companyId) {
+    if (!isProviderAvailable(selectedProvider)) {
       toast({
-        title: "Checkout failed",
-        description: "Could not determine which company this subscription belongs to.",
+        title: `${getProviderName(selectedProvider)} is coming soon`,
+        description: "This payment provider isn't live yet. Please choose a different one.",
         variant: "destructive",
       });
       return;
@@ -485,12 +546,12 @@ const SystemSettings = () => {
 
     await createCheckout({
       purpose: "add_modules",
-      company_id: companyId,
-      email: "",
+      company_id,
+      email,
       employee_count: 0,
       subscription_months: 0,
       selected_modules: addModulesForm.selectedModules,
-      payment_provider: "flutterwave",
+      payment_provider: selectedProvider,
     });
   };
 
@@ -505,11 +566,10 @@ const SystemSettings = () => {
       return;
     }
 
-    const companyId = resolveCompanyId(subscription);
-    if (!companyId) {
+    if (!isProviderAvailable(selectedProvider)) {
       toast({
-        title: "Checkout failed",
-        description: "Could not determine which company this subscription belongs to.",
+        title: `${getProviderName(selectedProvider)} is coming soon`,
+        description: "This payment provider isn't live yet. Please choose a different one.",
         variant: "destructive",
       });
       return;
@@ -517,12 +577,12 @@ const SystemSettings = () => {
 
     await createCheckout({
       purpose: "increase_employee_count",
-      company_id: companyId,
+      company_id,
       email: "",
       employee_count: increaseEmployeesForm.additionalEmployees,
       subscription_months: 0,
       selected_modules: [],
-      payment_provider: "flutterwave",
+      payment_provider: selectedProvider,
     });
   };
 
@@ -547,11 +607,10 @@ const SystemSettings = () => {
       return;
     }
 
-    const companyId = resolveCompanyId(subscription);
-    if (!companyId) {
+    if (!isProviderAvailable(selectedProvider)) {
       toast({
-        title: "Checkout failed",
-        description: "Could not determine which company this subscription belongs to.",
+        title: `${getProviderName(selectedProvider)} is coming soon`,
+        description: "This payment provider isn't live yet. Please choose a different one.",
         variant: "destructive",
       });
       return;
@@ -559,12 +618,12 @@ const SystemSettings = () => {
 
     await createCheckout({
       purpose: "renew_subscription",
-      company_id: companyId,
+      company_id,
       email: "",
       employee_count: form.employeeCount,
       subscription_months: form.subscriptionMonths,
       selected_modules: form.selectedModules,
-      payment_provider: "flutterwave",
+      payment_provider: selectedProvider,
     });
   };
 
@@ -939,6 +998,7 @@ const SystemSettings = () => {
     setSelectedModuleDetails([]);
     setCalculatedAmount(null);
     setCalculateMessage(null);
+    setSelectedProvider("flutterwave");
     setShowAddModules(true);
   };
 
@@ -955,6 +1015,7 @@ const SystemSettings = () => {
     setIncreaseEmployeesForm({ additionalEmployees: 0 });
     setCalculatedAmount(null);
     setCalculateMessage(null);
+    setSelectedProvider("flutterwave");
     setShowIncreaseEmployees(true);
   };
 
@@ -969,6 +1030,7 @@ const SystemSettings = () => {
   const openRenew = () => {
     setCalculatedAmount(null);
     setCalculateMessage(null);
+    setSelectedProvider("flutterwave");
     setShowRenew(true);
   };
 
@@ -983,6 +1045,7 @@ const SystemSettings = () => {
   const openNewSubscription = () => {
     setCalculatedAmount(null);
     setCalculateMessage(null);
+    setSelectedProvider("flutterwave");
     setShowNewSubscription(true);
   };
 
@@ -1817,6 +1880,25 @@ const SystemSettings = () => {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label>Payment Provider</Label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value as PaymentProviderId)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PAYMENT_PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                      {provider.name}
+                      {!provider.available ? " (Coming soon)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {PAYMENT_PROVIDERS.find((p) => p.id === selectedProvider)?.description}
+                </p>
+              </div>
+
               {calculatedAmount !== null && (
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                   <p className="text-sm text-muted-foreground">Total Amount</p>
@@ -1981,6 +2063,25 @@ const SystemSettings = () => {
                 </div>
               )}
 
+              <div className="space-y-2">
+                <Label>Payment Provider</Label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value as PaymentProviderId)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PAYMENT_PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                      {provider.name}
+                      {!provider.available ? " (Coming soon)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {PAYMENT_PROVIDERS.find((p) => p.id === selectedProvider)?.description}
+                </p>
+              </div>
+
               {calculatedAmount !== null && (
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                   <p className="text-sm text-muted-foreground">Prorated Amount</p>
@@ -2059,6 +2160,25 @@ const SystemSettings = () => {
                 <p className="text-xs text-muted-foreground">
                   This will add to your current count. Total will be:{" "}
                   {(subscription?.subscribed_employee_count || 0) + increaseEmployeesForm.additionalEmployees}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Provider</Label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value as PaymentProviderId)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PAYMENT_PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                      {provider.name}
+                      {!provider.available ? " (Coming soon)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {PAYMENT_PROVIDERS.find((p) => p.id === selectedProvider)?.description}
                 </p>
               </div>
 
@@ -2215,6 +2335,25 @@ const SystemSettings = () => {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label>Payment Provider</Label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value as PaymentProviderId)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PAYMENT_PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                      {provider.name}
+                      {!provider.available ? " (Coming soon)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {PAYMENT_PROVIDERS.find((p) => p.id === selectedProvider)?.description}
+                </p>
+              </div>
+
               {calculatedAmount !== null && (
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                   <p className="text-sm text-muted-foreground">Total Amount for Next Period</p>
@@ -2261,6 +2400,7 @@ const SystemSettings = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
       </div>
     </SidebarLayout>
   );

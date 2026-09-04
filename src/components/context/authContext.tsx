@@ -36,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // const [entity , setEntity] = useState
 
   const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
 

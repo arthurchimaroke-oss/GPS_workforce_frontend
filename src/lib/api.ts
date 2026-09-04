@@ -285,7 +285,7 @@ export type SubscriptionCheckoutPayload =
         employee_count: number;
         subscription_months: number;
         selected_modules: string[];
-        payment_provider: "flutterwave";
+        payment_provider: string;
     }
     | {
         purpose: "add_modules";
@@ -294,7 +294,7 @@ export type SubscriptionCheckoutPayload =
         employee_count: 0;
         subscription_months: 0;
         selected_modules: string[];
-        payment_provider: "flutterwave";
+        payment_provider: string;
     }
     | {
         purpose: "increase_employee_count";
@@ -303,7 +303,7 @@ export type SubscriptionCheckoutPayload =
         employee_count: number;
         subscription_months: 0;
         selected_modules: [];
-        payment_provider: "flutterwave";
+        payment_provider: string;
     }
     | {
         purpose: "renew_subscription";
@@ -312,13 +312,12 @@ export type SubscriptionCheckoutPayload =
         employee_count: number;
         subscription_months: number;
         selected_modules: string[];
-        payment_provider: "flutterwave";
+        payment_provider: string;
     };
 
 export type SubscriptionCheckoutResponse = {
-    status: boolean;
     message: string;
-    payment_url: string;
+    payment_link: string;
 };
 
 // ✅ FIXED: Matching actual subscription response
@@ -379,7 +378,7 @@ export const subscriptionApi = {
         }),
 
     checkout: (payload: SubscriptionCheckoutPayload) =>
-        request<SubscriptionCheckoutResponse>("/platform/subscription/checkout", {
+        request<SubscriptionCheckoutResponse>("/modules/checkout_subscription", {
             method: "POST",
             body: payload,
             credentials: "include",
