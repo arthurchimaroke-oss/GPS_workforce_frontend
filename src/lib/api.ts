@@ -256,10 +256,26 @@ export type GetPlatformModulesResponse = {
 
 export type CalculateSubscriptionPayload = {
     // employee_count: number;
-    // subscription_months: number;
     selected_modules: string[];
 };
+export type CalculateEmployeePayload = {
+    employee_count: number;
+    
+};
 
+export type CalculateEmployeeResponse = {
+    total_amount : number;
+};
+export type CalculateRenewSubscriptionPayload = {
+    employee_count: number;
+    selected_modules: string[];
+    subscription_months: number;
+    
+};
+
+export type CalculateRenewSubscriptionResponse = {
+    total_amount : number;
+};
 export type GetSelectedModulesResponse = {
     selected_modules: string[];
 };
@@ -272,7 +288,7 @@ export type CalculateSubscriptionResponse = {
 };
 
 export type SubscriptionCheckoutPurpose =
-    | "new_subscription"
+    // | "new_subscription"
     | "add_modules"
     | "increase_employee_count"
     | "renew_subscription";
@@ -364,10 +380,23 @@ export const subscriptionApi = {
         }),
 
 
-    calculate: (payload: CalculateSubscriptionPayload) =>
+    calculateAddModules: (payload: CalculateSubscriptionPayload) =>
         request<CalculateSubscriptionResponse>("/system_settings/modules/add_modules", {
             method: "POST",
             body: payload,
+            credentials: "include",
+        }),
+
+    calculateEmployeePrice: (payload : CalculateEmployeePayload) =>
+        request<CalculateEmployeeResponse>("/system_settings/employees/add_employees", {
+            method: "POST",
+            body : payload , 
+            credentials: "include",
+        }),
+    calculateRenewPrice: (payload : CalculateRenewSubscriptionPayload) =>
+        request<CalculateRenewSubscriptionResponse>("/modules/calculate_total", {
+            method: "POST",
+            body : payload,
             credentials: "include",
         }),
 

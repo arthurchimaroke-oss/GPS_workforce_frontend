@@ -27,6 +27,15 @@ type PendingAuth = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+
+  useEffect(() => {
+    console.log("🔥 AuthProvider mounted");
+    console.log("Current path:", window.location.pathname);
+
+    checkAuth();
+}, []);
+
+
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [token, setToken] = useState<string | null>(null);

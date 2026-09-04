@@ -202,10 +202,8 @@ const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
 // ============================================================
 
 const SystemSettings = () => {
-    const { user : {company_id , email}} = useAuth();
-
+    const { user : {company_id , email }} = useAuth();
     
-  
 
   // ============================================================
   // ENTITY STATE
@@ -392,12 +390,24 @@ const SystemSettings = () => {
   ) => {
     setIsCalculating(true);
     setCalculateMessage(null);
+    console.log("Currently hewre")
     try {
-      const response = await subscriptionApi.calculate({
-        employee_count: payload.employee_count || 0,
+
+      const response = purpose == "add_modules" ? await subscriptionApi.calculateAddModules({
+
+          selected_modules: payload.selected_modules || [],
+          // subscription_months: payload.subscription_months || 0,
+        }) : purpose == "increase_employee_count" ? await subscriptionApi.calculateEmployeePrice({
+          
+          employee_count: payload.employee_count || 0,
+        }) : await subscriptionApi.calculateRenewPrice({
+          
+          selected_modules: payload.selected_modules || [],
         subscription_months: payload.subscription_months || 0,
-        selected_modules: payload.selected_modules || [],
-      });
+          employee_count: payload.employee_count || 0,
+      })
+      // const response = await subscriptionApi.calculate({
+      // });
 
       console.log("📊 Calculate Response:", response);
 
@@ -578,7 +588,7 @@ const SystemSettings = () => {
     await createCheckout({
       purpose: "increase_employee_count",
       company_id,
-      email: "",
+      email,
       employee_count: increaseEmployeesForm.additionalEmployees,
       subscription_months: 0,
       selected_modules: [],
@@ -619,7 +629,7 @@ const SystemSettings = () => {
     await createCheckout({
       purpose: "renew_subscription",
       company_id,
-      email: "",
+      email,
       employee_count: form.employeeCount,
       subscription_months: form.subscriptionMonths,
       selected_modules: form.selectedModules,
